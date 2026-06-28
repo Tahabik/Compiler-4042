@@ -1,4 +1,3 @@
-# Generated from /Users/nimasaeidi/PycharmProjects/compiler/compiler-session2/nngraph.g4 by ANTLR 4.13.2
 from antlr4 import *
 from io import StringIO
 import sys
