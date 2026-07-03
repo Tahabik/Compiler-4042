@@ -1,0 +1,22 @@
+// * undefined edge endpoint (fc99)
+// * Residual with wrong arity (1 incoming edge)
+// * type mismatch
+// * orphan node 
+model Broken {
+    input x : tensor(16)
+    output out
+}
+
+graph {
+    node fc1    : Linear(in_features=16, out_features=8)
+    node drop1  : Dropout(p="0.3")
+    node skip   : Residual()
+    node lonely : ReLU()
+    node out    : Softmax(dim=1)
+
+    edge x    -> fc1
+    edge fc1  -> drop1
+    edge drop1 -> skip
+    edge skip -> out
+    edge fc99 -> out
+}

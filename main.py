@@ -1,37 +1,45 @@
-from antlr4 import *
 import argparse
-from custom_listener import CustomevmListener
+import sys
+
+from custom_listener import build_ast
+from semantic_analyzer import SemanticAnalyzer
 from code_generator import CodeGenerator
-from gen.evmTestLexer import evmTestLexer
-from gen.evmTestParser import evmTestParser
-from required_code_collection.ast_to_networkx_graph import show_ast
 
 
 def main(arguments):
-    stream = FileStream(arguments.input, encoding='utf8')
-    lexer = evmTestLexer(stream)
-    token_stream = CommonTokenStream(lexer)
-    parser = evmTestParser(token_stream)
-    parse_tree = parser.program()
-    ast_builder_listener = CustomevmListener()
-    ast_builder_listener.rule_names = parser.ruleNames
-    walker = ParseTreeWalker()
-    walker.walk(t=parse_tree, listener=ast_builder_listener)
-    ast = ast_builder_listener.ast
-    show_ast(ast.root)
-    traversal = ast.traverse_ast(ast.root)
-    print(traversal)
-    code_gen = CodeGenerator()
-    final_code = code_gen.generate(traversal)
-    print(final_code)
-    with open('evm_generator_output.txt','w') as evm_gen_out:
-        evm_gen_out.write(final_code)
+    ast = build_ast(arguments.input)
+
+    if arguments.show:
+        from required_code_collection.ast_to_networkx_graph import show_ast
+        show_ast(ast.root)
+
+    if arguments.dump:
+        print(ast.traverse_ast(ast.root))
+
+    model, diagnostics = SemanticAnalyzer().analyze(ast.root)
+
+    for diagnostic in diagnostics:
+        print(diagnostic)
+
+    if diagnostics.has_errors():
+        print(f"\nSemantic analysis failed: {len(diagnostics.errors())} error(s).")
+        return 1
+
+    print(f"\nSemantic analysis passed for model '{model.name}'"
+          f" ({len(diagnostics.warnings())} warning(s)).")
+
+    code = CodeGenerator().generate(model)
+    with open(arguments.output, 'w') as out:
+        out.write(code)
+    print(f"Generated PyTorch code written to '{arguments.output}'.")
+    return 0
 
 
 if __name__ == '__main__':
-    argparser = argparse.ArgumentParser()
-    argparser.add_argument('-i', '--input', help='Input source', default=r'input/test_switch_case.txt')
-    # argparser.add_argument('-i', '--input', help='Input source', default=r'input/test_if_else.txt')
-    argparser.add_argument('-o', '--output', help='Output path', default=r'output/test.evm-bytecode')
+    argparser = argparse.ArgumentParser(description="NNGraph DSL compiler")
+    argparser.add_argument('-i', '--input', help='Input .nng source',default=r'input/mlp.nng')
+    argparser.add_argument('-o', '--output', help='Output .py path',default=r'output/mlp.py')
+    argparser.add_argument('--show', action=argparse.BooleanOptionalAction,default=True,help='Render the AST (needs networkx/matplotlib/pydot)')
+    argparser.add_argument('--dump', action='store_true',help='Print the post-order AST traversal')
     args = argparser.parse_args()
-    main(args)
+    sys.exit(main(args))
