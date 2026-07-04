@@ -4,6 +4,7 @@ import sys
 from custom_listener import build_ast
 from semantic_analyzer import SemanticAnalyzer
 from code_generator import CodeGenerator
+from graph_export import export_dot
 
 
 def main(arguments):
@@ -32,6 +33,11 @@ def main(arguments):
     with open(arguments.output, 'w') as out:
         out.write(code)
     print(f"Generated PyTorch code written to '{arguments.output}'.")
+
+    dot = export_dot(model)
+    with open(arguments.dot, 'w') as out:
+        out.write(dot)
+    print(f"Graph diagram (Graphviz DOT) written to '{arguments.dot}'.")
     return 0
 
 
@@ -39,6 +45,7 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description="NNGraph DSL compiler")
     argparser.add_argument('-i', '--input', help='Input .nng source',default=r'input/mlp.nng')
     argparser.add_argument('-o', '--output', help='Output .py path',default=r'output/mlp.py')
+    argparser.add_argument('--dot', help='Output Graphviz .dot path',default=r'output/mlp.dot')
     argparser.add_argument('--show', action=argparse.BooleanOptionalAction,default=True,help='Render the AST (needs networkx/matplotlib/pydot)')
     argparser.add_argument('--dump', action='store_true',help='Print the post-order AST traversal')
     args = argparser.parse_args()

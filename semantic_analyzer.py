@@ -1,5 +1,7 @@
 from collections import OrderedDict, defaultdict, deque
 
+from shape_inference import infer_missing_dims
+
 INT, FLOAT, BOOL, STRING, SHAPE, NONE, UNKNOWN = (
     "int", "float", "bool", "string", "shape", "None", "unknown",
 )
@@ -44,6 +46,7 @@ MULTI_INPUT_OPS = {"Add", "Concat", "Residual"}
 class Diagnostic:
     ERROR = "Error"
     WARNING = "Warning"
+    INFO = "Info"
 
     def __init__(self, severity, message, hint=None):
         self.severity = severity
@@ -67,11 +70,17 @@ class Diagnostics:
     def warning(self, message, hint=None):
         self.items.append(Diagnostic(Diagnostic.WARNING, message, hint))
 
+    def info(self, message, hint=None):
+        self.items.append(Diagnostic(Diagnostic.INFO, message, hint))
+
     def errors(self):
         return [d for d in self.items if d.severity == Diagnostic.ERROR]
 
     def warnings(self):
         return [d for d in self.items if d.severity == Diagnostic.WARNING]
+
+    def infos(self):
+        return [d for d in self.items if d.severity == Diagnostic.INFO]
 
     def has_errors(self):
         return any(d.severity == Diagnostic.ERROR for d in self.items)
@@ -108,7 +117,8 @@ class SemanticModel:
         self.input_shape = () 
         self.output_id = None
         self.nodes = OrderedDict()
-        self.edges = []           
+        self.edges = []
+        self.edge_labels = {}     # (src, dst) -> label text, doc-only, ignored by codegen
         self.config = OrderedDict()
         self.topo_order = []
 
@@ -135,8 +145,9 @@ class SemanticAnalyzer:
         if config_node is not None:
             self._read_config(config_node, model)
 
-        self._check_param_types(model)
         valid_ids = self._wire_edges(model)
+        infer_missing_dims(model, self.diag)
+        self._check_param_types(model)
         self._check_residual(model)
         self._check_orphans(model, valid_ids)
         self._check_acyclic_and_topo(model, valid_ids)
@@ -171,6 +182,10 @@ class SemanticAnalyzer:
                 src = child.children[0].value
                 dst = child.children[1].value
                 model.edges.append((src, dst))
+                if len(child.children) > 2:
+                    label_node = child.children[2]
+                    if label_node.value == "label" and len(label_node.children) > 1:
+                        model.edge_labels[(src, dst)] = label_node.children[1].value.strip('"')
 
     def _read_node(self, node, model):
         node_id = node.children[0].value
