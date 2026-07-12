@@ -1,4 +1,4 @@
-import sys
+from antlr4 import FileStream, CommonTokenStream, ParseTreeWalker
 
 from gen.nngraphLexer import nngraphLexer
 from gen.nngraphParser import nngraphParser
@@ -90,4 +90,16 @@ class CustomListener(nngraphListener):
     def exitNumber(self, ctx):
         ctx.ast_value = self.ast.make_node(ctx.getText(), [])
         self.ast.root = ctx.ast_value
+
+
+def build_ast(path):
+    input_stream = FileStream(path, encoding="utf-8")
+    lexer = nngraphLexer(input_stream)
+    tokens = CommonTokenStream(lexer)
+    parser = nngraphParser(tokens)
+    tree = parser.program()
+
+    listener = CustomListener()
+    ParseTreeWalker().walk(listener, tree)
+    return listener.ast
 
