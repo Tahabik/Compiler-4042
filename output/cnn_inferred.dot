@@ -1,0 +1,24 @@
+digraph "ResBlock" {
+    rankdir=LR;
+    node [shape=box, fontname="Helvetica", style=filled, fillcolor="#f5f5f5"];
+
+    x [shape=ellipse, fillcolor="#cfe8ff", label="x\ntensor(64, 32, 32)"];
+    conv1 [label="conv1\nConv2d(in_ch=64*, out_ch=64, kernel=3, stride=1, padding=1)"];
+    bn1 [label="bn1\nBatchNorm2d(num_features=64*)"];
+    relu1 [label="relu1\nReLU()"];
+    conv2 [label="conv2\nConv2d(in_ch=64*, out_ch=64, kernel=3, stride=1, padding=1)"];
+    bn2 [label="bn2\nBatchNorm2d(num_features=64*)"];
+    skip [label="skip\nResidual()"];
+    relu2 [label="relu2\nReLU()"];
+    out [label="out\nFlatten()", peripheries=2, fillcolor="#ffe9b3"];
+
+    x -> conv1;
+    conv1 -> bn1;
+    bn1 -> relu1;
+    relu1 -> conv2;
+    conv2 -> bn2;
+    bn2 -> skip;
+    x -> skip [label="shortcut"];
+    skip -> relu2;
+    relu2 -> out;
+}
